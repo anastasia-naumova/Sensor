@@ -9,13 +9,12 @@ class Sensor:
 
     table_statuses = {}
 
-    def __init__(self, command_line_arguments, db_name, db_user, db_password, db_host, db_port):
+    def __init__(self, command_line_arguments, connection):
         if len(command_line_arguments) > 1:
             with open(format(command_line_arguments[1])) as f:
                 file = f.read()
                 self.config_file = json.loads(file)
-        self.connection = psycopg2.connect(database=db_name, user=db_user, password=db_password, host=db_host,
-                                           port=db_port)
+        self.connection = connection
 
     @staticmethod
     def compare_lists(list1, list2):
@@ -29,7 +28,6 @@ class Sensor:
                     return False
             print(True)
             return True
-        print(False)
         return False
 
     def get_cut_value_for_tables(self):
@@ -44,24 +42,29 @@ class Sensor:
         return cut_value
 
     def check_table_status(self):
+        print(Sensor.table_statuses, 'check_table_status')
         cursor = self.connection.cursor()
-        self.table_statuses = {}
+        #Sensor.table_statuses = {}
         checking_table_updates = []
         cut_value = self.get_cut_value_for_tables()
+        print()
         while time.time() - time_start < self.config_file['waiting_time'] and \
-                self.compare_lists(self.config_file['table_names'], self.table_statuses.keys()):
+                Sensor.compare_lists(self.config_file['table_names'], Sensor.table_statuses.keys()):
+
+            print(Sensor.table_statuses, 'check_table_status_while')
+
             checking_table_updates.clear()
             for table in cut_value:
                 cursor.execute("select max(insert_dttm) from bookings.update_status where table_name = %s "
                                "and insert_dttm > %s", (table, cut_value[table]))
                 result = str(cursor.fetchone()[0])
                 if result != 'None':
-                    self.table_statuses[table] = result
-            if not self.compare_lists(self.config_file['table_names'], self.table_statuses.keys()):
+                    Sensor.table_statuses[table] = result
+            if not Sensor.compare_lists(self.config_file['table_names'], Sensor.table_statuses.keys()):
                 time.sleep(self.config_file['update_time'])
         cursor.close()
-        print(self.table_statuses)
-        return self.table_statuses
+        print(Sensor.table_statuses)
+        return Sensor.table_statuses
 
     def create_result_table(self):
         cursor = self.connection.cursor()
@@ -72,15 +75,15 @@ class Sensor:
 
     def update_cutparam(self):
         cursor = self.connection.cursor()
-        for table in self.table_statuses:
+        for table in table_statuses:
             cursor.execute("update target_bookings.last_taken_data set dataflow_dttm = now(), cut_value = %s "
-                           "where job_name = %s and table_name = %s", (self.table_statuses[table],
+                           "where job_name = %s and table_name = %s", (table_statuses[table],
                                                                        self.config_file['job_name'], table))
         self.connection.commit()
         cursor.close()
 
     def load_table(self):
-        if self.compare_lists(self.config_file['table_names'], self.table_statuses.keys()) \
+        if Sensor.compare_lists(self.config_file['table_names'], table_statuses.keys()) \
                 or self.config_file['load_or_drop'] == True:
             self.create_result_table()
             self.update_cutparam()
@@ -92,11 +95,14 @@ if __name__ == "__main__":
 
     time_start = time.time()
 
-    load_job = Sensor(sys.argv, db_name="demo", db_user="annaum", db_password="123", db_host="192.168.1.67",
-                      db_port="5432")
+    connection = psycopg2.connect(database="demo", user="annaum", password="123", host="192.168.1.67",
+                                  port="5432")
 
-    Sensor.table_statuses = load_job.check_table_status()
+    load_job = Sensor(sys.argv, connection)
 
-    load_job.load_table()
+    table_statuses = load_job.check_table_status()
+    print(table_statuses, '1111')
 
-    load_job.connection.close()
+    #load_job.load_table()
+
+    #load_job.connection.close()
