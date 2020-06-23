@@ -3,7 +3,7 @@ import time
 import json
 import sys
 
-#разобраться с table_statuses
+#ошибка в проверке списков на равенство -> вызов метода compare_lists
 
 class Sensor:
 
@@ -24,9 +24,7 @@ class Sensor:
                 if list1[i] in list2:
                     i += 1
                 else:
-                    print(False)
                     return False
-            print(True)
             return True
         return False
 
@@ -38,21 +36,14 @@ class Sensor:
                            "table_name = %s", (self.config_file['job_name'], table))
             cut_value[table] = str(cursor.fetchone()[0])
         cursor.close()
-        print(cut_value)
         return cut_value
 
     def check_table_status(self):
-        print(Sensor.table_statuses, 'check_table_status')
         cursor = self.connection.cursor()
-        #Sensor.table_statuses = {}
         checking_table_updates = []
         cut_value = self.get_cut_value_for_tables()
-        print()
         while time.time() - time_start < self.config_file['waiting_time'] and \
-                Sensor.compare_lists(self.config_file['table_names'], Sensor.table_statuses.keys()):
-
-            print(Sensor.table_statuses, 'check_table_status_while')
-
+                Sensor.compare_lists(self.config_file['table_names'], Sensor.table_statuses):
             checking_table_updates.clear()
             for table in cut_value:
                 cursor.execute("select max(insert_dttm) from bookings.update_status where table_name = %s "
@@ -60,10 +51,9 @@ class Sensor:
                 result = str(cursor.fetchone()[0])
                 if result != 'None':
                     Sensor.table_statuses[table] = result
-            if not Sensor.compare_lists(self.config_file['table_names'], Sensor.table_statuses.keys()):
+            if not Sensor.compare_lists(self.config_file['table_names'], Sensor.table_statuses):
                 time.sleep(self.config_file['update_time'])
         cursor.close()
-        print(Sensor.table_statuses)
         return Sensor.table_statuses
 
     def create_result_table(self):
@@ -83,7 +73,7 @@ class Sensor:
         cursor.close()
 
     def load_table(self):
-        if Sensor.compare_lists(self.config_file['table_names'], table_statuses.keys()) \
+        if Sensor.compare_lists(self.config_file['table_names'], table_statuses) \
                 or self.config_file['load_or_drop'] == True:
             self.create_result_table()
             self.update_cutparam()
@@ -101,8 +91,7 @@ if __name__ == "__main__":
     load_job = Sensor(sys.argv, connection)
 
     table_statuses = load_job.check_table_status()
-    print(table_statuses, '1111')
 
-    #load_job.load_table()
+    load_job.load_table()
 
-    #load_job.connection.close()
+    load_job.connection.close()
