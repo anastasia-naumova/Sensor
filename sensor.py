@@ -6,8 +6,6 @@ import sys
 
 class Sensor:
 
-    table_statuses = {}
-
     def __init__(self, command_line_arguments, connection):
         if len(command_line_arguments) > 1:
             with open(format(command_line_arguments[1])) as f:
@@ -40,20 +38,21 @@ class Sensor:
     def check_table_status(self):
         cursor = self.connection.cursor()
         checking_table_updates = []
+        table_statuses = {}
         cut_value = self.get_cut_value_for_tables()
         while time.time() - time_start < self.config_file['waiting_time'] and not\
-                Sensor.compare_lists(self.config_file['table_names'], Sensor.table_statuses):
+                Sensor.compare_lists(self.config_file['table_names'], table_statuses):
             checking_table_updates.clear()
             for table in cut_value:
                 cursor.execute("select max(insert_dttm) from bookings.update_status where table_name = %s "
                                "and insert_dttm > %s", (table, cut_value[table]))
                 result = str(cursor.fetchone()[0])
                 if result != 'None':
-                    Sensor.table_statuses[table] = result
-            if not Sensor.compare_lists(self.config_file['table_names'], Sensor.table_statuses):
+                    table_statuses[table] = result
+            if not Sensor.compare_lists(self.config_file['table_names'], table_statuses):
                 time.sleep(self.config_file['update_time'])
         cursor.close()
-        return Sensor.table_statuses
+        return table_statuses
 
     def create_result_table(self):
         cursor = self.connection.cursor()
