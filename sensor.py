@@ -3,7 +3,6 @@ import time
 import json
 import sys
 
-#ошибка в проверке списков на равенство -> вызов метода compare_lists
 
 class Sensor:
 
@@ -42,7 +41,7 @@ class Sensor:
         cursor = self.connection.cursor()
         checking_table_updates = []
         cut_value = self.get_cut_value_for_tables()
-        while time.time() - time_start < self.config_file['waiting_time'] and \
+        while time.time() - time_start < self.config_file['waiting_time'] and not\
                 Sensor.compare_lists(self.config_file['table_names'], Sensor.table_statuses):
             checking_table_updates.clear()
             for table in cut_value:
