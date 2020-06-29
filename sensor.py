@@ -2,29 +2,48 @@ import psycopg2
 import time
 import json
 import sys
+from accessify import protected
+
+
+def compare_lists(list1, list2):
+    i = 0
+    if len(list1) == len(list2):
+        while i < len(list1):
+            if list1[i] in list2:
+                i += 1
+            else:
+                return False
+        return True
+    return False
+
+
+def create_result_table(connection, path_to_sql_file):
+    cursor = connection.cursor()
+    with open(path_to_sql_file) as sql_file:
+        cursor.execute(sql_file.read())
+        connection.commit()
+    cursor.close()
+
+
+def update_cutparam(connection, table_statuses, job_name):
+    cursor = connection.cursor()
+    for table in table_statuses:
+        cursor.execute("update target_bookings.last_taken_data set dataflow_dttm = now(), cut_value = %s "
+                       "where job_name = %s and table_name = %s", (table_statuses[table], job_name, table))
+    connection.commit()
+    cursor.close()
 
 
 class Sensor:
 
-    def __init__(self, command_line_arguments, connection):
-        if len(command_line_arguments) > 1:
-            with open(format(command_line_arguments[1])) as f:
+    def __init__(self, path_to_config_file, connection):
+        if len(path_to_config_file) > 1:
+            with open(format(path_to_config_file[1])) as f:
                 file = f.read()
                 self.config_file = json.loads(file)
         self.connection = connection
 
-    @staticmethod
-    def compare_lists(list1, list2):
-        i = 0
-        if len(list1) == len(list2):
-            while i < len(list1):
-                if list1[i] in list2:
-                    i += 1
-                else:
-                    return False
-            return True
-        return False
-
+    @protected
     def get_cut_value_for_tables(self):
         cursor = self.connection.cursor()
         cut_value = {}
@@ -35,13 +54,14 @@ class Sensor:
         cursor.close()
         return cut_value
 
+    @protected
     def check_table_status(self):
         cursor = self.connection.cursor()
         checking_table_updates = []
         table_statuses = {}
         cut_value = self.get_cut_value_for_tables()
         while time.time() - time_start < self.config_file['waiting_time'] and not\
-                Sensor.compare_lists(self.config_file['table_names'], table_statuses):
+                compare_lists(self.config_file['table_names'], table_statuses):
             checking_table_updates.clear()
             for table in cut_value:
                 cursor.execute("select max(insert_dttm) from bookings.update_status where table_name = %s "
@@ -49,35 +69,23 @@ class Sensor:
                 result = str(cursor.fetchone()[0])
                 if result != 'None':
                     table_statuses[table] = result
-            if not Sensor.compare_lists(self.config_file['table_names'], table_statuses):
+            if not compare_lists(self.config_file['table_names'], table_statuses):
                 time.sleep(self.config_file['update_time'])
         cursor.close()
         return table_statuses
 
-    def create_result_table(self):
-        cursor = self.connection.cursor()
-        with open(self.config_file['path_to_sql_file']) as sql_file:
-            cursor.execute(sql_file.read())
-            self.connection.commit()
-        cursor.close()
-
-    def update_cutparam(self):
-        cursor = self.connection.cursor()
-        for table in table_statuses:
-            cursor.execute("update target_bookings.last_taken_data set dataflow_dttm = now(), cut_value = %s "
-                           "where job_name = %s and table_name = %s", (table_statuses[table],
-                                                                       self.config_file['job_name'], table))
-        self.connection.commit()
-        cursor.close()
-
+    @protected
     def load_table(self):
-        if Sensor.compare_lists(self.config_file['table_names'], table_statuses) \
+        table_statuses = self.check_table_status()
+        if compare_lists(self.config_file['table_names'], table_statuses) \
                 or self.config_file['load_or_drop'] == True:
-            self.create_result_table()
-            self.update_cutparam()
+            create_result_table(self.connection, self.config_file['path_to_sql_file'])
+            update_cutparam(self.connection, table_statuses, self.config_file['job_name'])
         else:
             raise TimeoutError('Timeout expired')
 
+    def waiting(self):
+        self.load_table()
 
 if __name__ == "__main__":
 
@@ -88,8 +96,6 @@ if __name__ == "__main__":
 
     load_job = Sensor(sys.argv, connection)
 
-    table_statuses = load_job.check_table_status()
-
-    load_job.load_table()
+    load_job.waiting()
 
     load_job.connection.close()
