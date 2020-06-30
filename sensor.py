@@ -34,13 +34,20 @@ def update_cutparam(connection, table_statuses, job_name):
     cursor.close()
 
 
-class Sensor:
-
-    def __init__(self, path_to_config_file, connection):
+class Config:
+    def __init__(self, path_to_config_file):
         if len(path_to_config_file) > 1:
-            with open(format(path_to_config_file[1])) as f:
+            with open(format(path_to_config_file[1])) as f: #Eсли структура файла нарушена падение с ошибкой 1-(неверный формат конфигурациооного файла).
                 file = f.read()
                 self.config_file = json.loads(file)
+
+    #def i(self):
+
+
+class Sensor(Config):
+
+    def __init__(self, path_to_config_file, connection):
+        super().__init__(path_to_config_file)
         self.connection = connection
 
     @protected
@@ -78,7 +85,7 @@ class Sensor:
     def load_table(self):
         table_statuses = self.check_table_status()
         if compare_lists(self.config_file['table_names'], table_statuses) \
-                or self.config_file['load_or_drop'] == True:
+                or self.config_file['load_or_cruch'] == True:
             create_result_table(self.connection, self.config_file['path_to_sql_file'])
             update_cutparam(self.connection, table_statuses, self.config_file['job_name'])
         else:
