@@ -4,6 +4,7 @@ import json
 import sys
 from accessify import protected
 
+#1-подключение обернуть в ошибку, 2-sql файл
 
 def compare_lists(list1, list2):
     i = 0
@@ -35,13 +36,15 @@ def update_cutparam(connection, table_statuses, job_name):
 
 
 class Config:
+
     def __init__(self, path_to_config_file):
         if len(path_to_config_file) > 1:
-            with open(format(path_to_config_file[1])) as f: #Eсли структура файла нарушена падение с ошибкой 1-(неверный формат конфигурациооного файла).
-                file = f.read()
-                self.config_file = json.loads(file)
-
-    #def i(self):
+            try:
+                with open(format(path_to_config_file[1])) as f:
+                    file = f.read()
+                    self.config_file = json.loads(file)
+            except json.JSONDecodeError:
+                print('Неверный формат конфигурациооного файла')
 
 
 class Sensor(Config):
