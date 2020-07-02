@@ -4,7 +4,6 @@ import json
 import sys
 from accessify import protected
 
-#1-подключение обернуть в ошибку, 2-sql файл
 
 def compare_lists(list1, list2):
     i = 0
@@ -20,9 +19,12 @@ def compare_lists(list1, list2):
 
 def create_result_table(connection, path_to_sql_file):
     cursor = connection.cursor()
-    with open(path_to_sql_file) as sql_file:
-        cursor.execute(sql_file.read())
-        connection.commit()
+    try:
+        with open(path_to_sql_file) as sql_file:
+            cursor.execute(sql_file.read())
+            connection.commit()
+    except IOError:
+        print('Файл не найден или закрыт')
     cursor.close()
 
 
@@ -45,6 +47,8 @@ class Config:
                     self.config_file = json.loads(file)
             except json.JSONDecodeError:
                 print('Неверный формат конфигурациооного файла')
+            except IOError:
+                print('Файл не найден или закрыт')
 
 
 class Sensor(Config):
@@ -52,6 +56,7 @@ class Sensor(Config):
     def __init__(self, path_to_config_file, connection):
         super().__init__(path_to_config_file)
         self.connection = connection
+
 
     @protected
     def get_cut_value_for_tables(self):
@@ -97,12 +102,15 @@ class Sensor(Config):
     def waiting(self):
         self.load_table()
 
+
 if __name__ == "__main__":
 
     time_start = time.time()
 
-    connection = psycopg2.connect(database="demo", user="annaum", password="123", host="192.168.1.67",
-                                  port="5432")
+    try:
+        connection = psycopg2.connect(database="demo", user="annaum", password="123", host="192.168.1.67", port="5432")
+    except psycopg2.DatabaseError:
+        print('Неверные параметры подключения')
 
     load_job = Sensor(sys.argv, connection)
 
