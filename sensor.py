@@ -24,7 +24,7 @@ def create_result_table(connection, path_to_sql_file):
             cursor.execute(sql_file.read())
             connection.commit()
     except IOError:
-        print('Файл не найден или закрыт')
+        print('File not found or closed')
     cursor.close()
 
 
@@ -46,9 +46,9 @@ class Config:
                     file = f.read()
                     self.config_file = json.loads(file)
             except json.JSONDecodeError:
-                print('Неверный формат конфигурациооного файла')
+                print('Invalid configuration file format')
             except IOError:
-                print('Файл не найден или закрыт')
+                print('File not found or closed')
 
 
 class Sensor(Config):
@@ -56,7 +56,6 @@ class Sensor(Config):
     def __init__(self, path_to_config_file, connection):
         super().__init__(path_to_config_file)
         self.connection = connection
-
 
     @protected
     def get_cut_value_for_tables(self):
@@ -110,7 +109,7 @@ if __name__ == "__main__":
     try:
         connection = psycopg2.connect(database="demo", user="annaum", password="123", host="192.168.1.67", port="5432")
     except psycopg2.DatabaseError:
-        print('Неверные параметры подключения')
+        print('Connection exception')
 
     load_job = Sensor(sys.argv, connection)
 
