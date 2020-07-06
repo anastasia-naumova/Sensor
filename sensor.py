@@ -23,8 +23,8 @@ def create_result_table(connection, path_to_sql_file):
         with open(path_to_sql_file) as sql_file:
             cursor.execute(sql_file.read())
             connection.commit()
-    except IOError:
-        print('File not found or closed')
+    except:
+        raise IOError('File not found or closed')
     cursor.close()
 
 
@@ -47,8 +47,7 @@ class Config:
                     self.config_file = json.loads(file)
             except json.JSONDecodeError:
                 print('Invalid configuration file format')
-            except IOError:
-                print('File not found or closed')
+            raise IOError('File not found or closed')
 
 
 class Sensor(Config):
@@ -108,8 +107,8 @@ if __name__ == "__main__":
 
     try:
         connection = psycopg2.connect(database="demo", user="annaum", password="123", host="192.168.1.67", port="5432")
-    except psycopg2.DatabaseError:
-        print('Connection exception')
+    except:
+        raise psycopg2.OperationalError('Connection failure')
 
     load_job = Sensor(sys.argv, connection)
 
