@@ -23,8 +23,8 @@ def create_result_table(connection, path_to_sql_file):
         with open(path_to_sql_file) as sql_file:
             cursor.execute(sql_file.read())
             connection.commit()
-    except:
-        raise IOError('File not found or closed')
+    except IOError:
+        print('File not found or closed')
     cursor.close()
 
 
@@ -47,7 +47,8 @@ class Config:
                     self.config_file = json.loads(file)
             except json.JSONDecodeError:
                 print('Invalid configuration file format')
-            raise IOError('File not found or closed')
+            except IOError:
+                print('File not found or closed')
 
 
 class Sensor(Config):
