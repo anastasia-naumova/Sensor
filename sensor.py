@@ -36,13 +36,16 @@ def update_cutparam(connection, table_statuses, job_name):
     connection.commit()
     cursor.close()
 
+#Что я хочу сделать? Что будет? Для чего мне это?
+#обдумать ошибки, если нужно переделать
+# 1- проверка структуры json, что есть все параметры - raise
 
 class Config:
 
-    def __init__(self, path_to_config_file):
+    def __init__(self, path_to_config_file): #передавать строку
         if len(path_to_config_file) > 1:
             try:
-                with open(format(path_to_config_file[1])) as f:
+                with open(format(path_to_config_file[1])) as f:#переделать
                     file = f.read()
                     self.config_file = json.loads(file)
             except json.JSONDecodeError:
@@ -51,7 +54,7 @@ class Config:
                 print('File not found or closed')
 
 
-class Sensor(Config):
+class Sensor(Config):#наследование здесь не нужно и нельзя делать
 
     def __init__(self, path_to_config_file, connection):
         super().__init__(path_to_config_file)
