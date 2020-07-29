@@ -19,12 +19,9 @@ def compare_lists(list1, list2):
 
 def create_result_table(connection, path_to_sql_file):
     cursor = connection.cursor()
-    try:
-        with open(path_to_sql_file) as sql_file:
-            cursor.execute(sql_file.read())
-            connection.commit()
-    except IOError:
-        print('File not found or closed')
+    with open(path_to_sql_file) as sql_file:
+        cursor.execute(sql_file.read())
+        connection.commit()
     cursor.close()
 
 
@@ -40,24 +37,33 @@ def update_cutparam(connection, table_statuses, job_name):
 #обдумать ошибки, если нужно переделать
 # 1- проверка структуры json, что есть все параметры - raise
 
+
+class StructureException(Exception):
+    pass
+
+
 class Config:
 
-    def __init__(self, path_to_config_file): #передавать строку
+    def __init__(self, path_to_config_file):
         if len(path_to_config_file) > 1:
-            try:
-                with open(format(path_to_config_file[1])) as f:#переделать
-                    file = f.read()
-                    self.config_file = json.loads(file)
-            except json.JSONDecodeError:
-                print('Invalid configuration file format')
-            except IOError:
-                print('File not found or closed')
+            with open(path_to_config_file) as f:
+                file = f.read()
+                self.config_file = json.loads(file)
+
+    def check_json_structure(self):
+        json_dictionary = ['job_name', 'path_to_sql_file', 'table_names', 'waiting_time', 'update_time',
+                           'load_or_cruch']
+        try:
+            for i in json_dictionary:
+                if i not in self.config_file:
+                    raise StructureException("Json structure missing parameter: " + str(i))
+        except StructureException as exc:
+            print(exc)
 
 
-class Sensor(Config):#наследование здесь не нужно и нельзя делать
+class Sensor:#наследование здесь не нужно и нельзя делать
 
-    def __init__(self, path_to_config_file, connection):
-        super().__init__(path_to_config_file)
+    def __init__(self, connection):
         self.connection = connection
 
     @protected
@@ -109,12 +115,13 @@ if __name__ == "__main__":
 
     time_start = time.time()
 
-    try:
-        connection = psycopg2.connect(database="demo", user="annaum", password="123", host="192.168.1.67", port="5432")
-    except:
-        raise psycopg2.OperationalError('Connection failure')
+    connection = psycopg2.connect(database="demo", user="annaum", password="123", host="192.168.1.67", port="5432")
 
-    load_job = Sensor(sys.argv, connection)
+    w = Config(sys.argv[1])
+
+    w.check_json_structure()
+
+    load_job = Sensor(connection)
 
     load_job.waiting()
 
