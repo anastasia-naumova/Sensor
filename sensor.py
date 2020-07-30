@@ -33,10 +33,6 @@ def update_cutparam(connection, table_statuses, job_name):
     connection.commit()
     cursor.close()
 
-#Что я хочу сделать? Что будет? Для чего мне это?
-#обдумать ошибки, если нужно переделать
-# 1- проверка структуры json, что есть все параметры - raise
-
 
 class StructureException(Exception):
     pass
@@ -48,23 +44,21 @@ class Config:
         if len(path_to_config_file) > 1:
             with open(path_to_config_file) as f:
                 file = f.read()
-                self.config_file = json.loads(file)
-
-    def check_json_structure(self):
-        json_dictionary = ['job_name', 'path_to_sql_file', 'table_names', 'waiting_time', 'update_time',
-                           'load_or_cruch']
-        try:
-            for i in json_dictionary:
-                if i not in self.config_file:
-                    raise StructureException("Json structure missing parameter: " + str(i))
-        except StructureException as exc:
-            print(exc)
+                try:
+                    for i in json_dictionary:
+                        if i not in file:
+                            raise StructureException("Json is invalid! Json structure missing parameter: " + str(i))
+                except StructureException as exc:
+                    print(exc)
+                else:
+                    self.config_file = json.loads(file)
 
 
-class Sensor:#наследование здесь не нужно и нельзя делать
+class Sensor:
 
     def __init__(self, connection):
         self.connection = connection
+        Config.__init__(self, path_to_config_file=sys.argv[1])
 
     @protected
     def get_cut_value_for_tables(self):
@@ -115,11 +109,10 @@ if __name__ == "__main__":
 
     time_start = time.time()
 
+    json_dictionary = ['job_name', 'path_to_sql_file', 'table_names', 'waiting_time', 'update_time',
+                       'load_or_cruch']
+
     connection = psycopg2.connect(database="demo", user="annaum", password="123", host="192.168.1.67", port="5432")
-
-    w = Config(sys.argv[1])
-
-    w.check_json_structure()
 
     load_job = Sensor(connection)
 
