@@ -34,7 +34,7 @@ def update_cutparam(connection, table_statuses, job_name):
     cursor.close()
 
 
-class StructureException(Exception):
+class JSONStructureException(Exception):
     pass
 
 
@@ -45,11 +45,12 @@ class Config:
             with open(path_to_config_file) as f:
                 file = f.read()
                 try:
-                    for i in json_dictionary:
+                    for i in json_file_dictionary:
                         if i not in file:
-                            raise StructureException("Json is invalid! Json structure missing parameter: " + str(i))
-                except StructureException as exc:
-                    print(exc)
+                            raise JSONStructureException("Json file is invalid! Json file structure missing parameter: "
+                                                         + str(i))
+                except JSONStructureException:
+                    raise
                 else:
                     self.config_file = json.loads(file)
 
@@ -57,6 +58,7 @@ class Config:
 class Sensor:
 
     def __init__(self, connection):
+        self.config_file = None
         self.connection = connection
         Config.__init__(self, path_to_config_file=sys.argv[1])
 
@@ -94,8 +96,7 @@ class Sensor:
     @protected
     def load_table(self):
         table_statuses = self.check_table_status()
-        if compare_lists(self.config_file['table_names'], table_statuses) \
-                or self.config_file['load_or_cruch'] == True:
+        if compare_lists(self.config_file['table_names'], table_statuses) or self.config_file['load_or_crash'] is True:
             create_result_table(self.connection, self.config_file['path_to_sql_file'])
             update_cutparam(self.connection, table_statuses, self.config_file['job_name'])
         else:
@@ -106,11 +107,10 @@ class Sensor:
 
 
 if __name__ == "__main__":
-
     time_start = time.time()
 
-    json_dictionary = ['job_name', 'path_to_sql_file', 'table_names', 'waiting_time', 'update_time',
-                       'load_or_cruch']
+    json_file_dictionary = ['job_name', 'path_to_sql_file', 'table_names', 'waiting_time', 'update_time',
+                            'load_or_crash']
 
     connection = psycopg2.connect(database="demo", user="annaum", password="123", host="192.168.1.67", port="5432")
 
